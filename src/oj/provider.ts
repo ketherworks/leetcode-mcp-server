@@ -251,7 +251,7 @@ export class LeetCodeOjProvider {
             const fetchedAt = this.nowIso();
             const auditedQuestions = parsed.data.questions.map((problem) => ({
                 problem,
-                paidOnly: requirePaidMarker(problem, this.site)
+                paidOnly: requirePaidMarker(problem, this.site, "search")
             }));
             const items = auditedQuestions
                 .filter(({ paidOnly }) => !paidOnly)
@@ -332,7 +332,7 @@ export class LeetCodeOjProvider {
                 );
             }
             const problem = parsed.data;
-            if (requirePaidMarker(problem, this.site)) {
+            if (requirePaidMarker(problem, this.site, "fetch")) {
                 throw new LeetCodeAdapterError(
                     "policy.blocked",
                     "Premium LeetCode problem content is excluded by adapter policy."
@@ -542,9 +542,13 @@ function normalizeAcceptance(value: number): number {
 
 function requirePaidMarker(
     value: { isPaidOnly?: boolean; paidOnly?: boolean },
-    site: LeetCodeSite
+    site: LeetCodeSite,
+    operation: "search" | "fetch"
 ): boolean {
-    const marker = site === "cn" ? value.paidOnly : value.isPaidOnly;
+    const marker =
+        operation === "fetch" || site === "global"
+            ? value.isPaidOnly
+            : value.paidOnly;
     if (typeof marker !== "boolean") {
         throw new LeetCodeAdapterError(
             "upstream.schema_changed",

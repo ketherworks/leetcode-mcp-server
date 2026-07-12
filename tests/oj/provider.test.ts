@@ -216,6 +216,46 @@ describe("LeetCode OJ provider", () => {
             });
     });
 
+    test("uses isPaidOnly for CN fetches and still fails closed when it is absent", async () => {
+        const publicProvider = createProviderForSite("cn", {
+            fetchProblem: async () => ({
+                ...publicProblemFixture,
+                isPaidOnly: false
+            })
+        });
+        const premiumProvider = createProviderForSite("cn", {
+            fetchProblem: async () => ({
+                ...premiumProblemFixture,
+                isPaidOnly: true
+            })
+        });
+        const missingProvider = createProviderForSite("cn", {
+            fetchProblem: async () => {
+                const { isPaidOnly: _marker, ...withoutMarker } =
+                    premiumProblemFixture;
+                return withoutMarker;
+            }
+        });
+
+        await expect(
+            publicProvider.fetchProblem(problemRef("two-sum", "cn"))
+        ).resolves.toMatchObject({
+            access: "public",
+            locale: "zh-CN",
+            ref: { site: "cn" }
+        });
+        await expect(
+            premiumProvider.fetchProblem(problemRef("premium-secret", "cn"))
+        ).rejects.toMatchObject({
+            code: "policy.blocked"
+        });
+        await expect(
+            missingProvider.fetchProblem(problemRef("premium-secret", "cn"))
+        ).rejects.toMatchObject({
+            code: "upstream.schema_changed"
+        });
+    });
+
     test("rejects mismatched canonical problem references before reading upstream", async () => {
         let fetches = 0;
         const provider = createProvider({
@@ -261,9 +301,13 @@ describe("LeetCode OJ provider", () => {
 });
 
 function createProvider(overrides = {}) {
+    return createProviderForSite("global", overrides);
+}
+
+function createProviderForSite(site: "global" | "cn", overrides = {}) {
     return new LeetCodeOjProvider({
         service: createFakeService(overrides),
-        site: "global",
+        site,
         nowIso: () => FIXED_NOW
     });
 }

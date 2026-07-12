@@ -3,23 +3,28 @@ import type { AnonymousLeetCodeService } from "../../src/oj/service.js";
 
 export const FIXED_NOW = "2026-07-12T08:00:00.000Z";
 
-export function problemRef(nativeId = "two-sum"): OjProblemRef {
+export function problemRef(
+    nativeId = "two-sum",
+    site: "global" | "cn" = "global"
+): OjProblemRef {
+    const origin =
+        site === "cn" ? "https://leetcode.cn" : "https://leetcode.com";
     const source = {
         kind: "community_adapter" as const,
         adapterId: "leetcode-query-anonymous-adapter",
         adapterVersion: "0.1.0",
         fetchedAt: FIXED_NOW,
-        sourceUrl: "https://leetcode.com/problemset/",
+        sourceUrl: `${origin}/problemset/`,
         rawRef: nativeId,
         confidence: "derived" as const
     };
     return {
         schemaVersion: "oj.problem-ref/v1",
         platform: "leetcode",
-        site: "global",
+        site,
         nativeId,
-        canonicalId: `leetcode:global:${nativeId}`,
-        url: `https://leetcode.com/problems/${nativeId}/`,
+        canonicalId: `leetcode:${site}:${nativeId}`,
+        url: `${origin}/problems/${nativeId}/`,
         source
     };
 }
