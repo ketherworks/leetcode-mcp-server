@@ -5,6 +5,9 @@
     "private": true,
     "author": "KetherWorks",
     "main": "./build/index.js",
+    "exports": {
+        ".": "./build/index.js"
+    },
     "keywords": [
         "leetcode",
         "lc",

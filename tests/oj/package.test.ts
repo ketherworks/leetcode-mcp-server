@@ -37,6 +37,7 @@ describe("private package metadata and artifact", () => {
             test: "vitest run",
             prepack: "npm run build"
         });
+        expect(packageJson.exports).toEqual({ ".": "./build/index.js" });
         expect(packageJson.files).toEqual(
             expect.arrayContaining([
                 "build/index.js",

@@ -101,7 +101,7 @@ describe("LeetCode OJ provider", () => {
                         title: "Two Sum",
                         titleSlug: "two-sum",
                         topicTags: [],
-                        paidOnly: false
+                        isPaidOnly: false
                     }
                 ]
             })
@@ -163,6 +163,54 @@ describe("LeetCode OJ provider", () => {
             .fetchProblem(problemRef("premium-secret"))
             .catch((error) => {
                 expect((error as Error).message).not.toContain(
+                    "SECRET_PREMIUM_STATEMENT"
+                );
+            });
+    });
+
+    test("fails closed when search or fetch omits the Premium access marker", async () => {
+        const searchProvider = createProvider({
+            searchProblems: async () => ({
+                total: 1,
+                questions: [
+                    {
+                        title: "Unknown Access",
+                        titleSlug: "unknown-access",
+                        topicTags: [],
+                        secret: "SECRET_PREMIUM_SEARCH"
+                    }
+                ]
+            })
+        });
+        const fetchProvider = createProvider({
+            fetchProblem: async () => {
+                const { isPaidOnly: _marker, ...withoutMarker } =
+                    premiumProblemFixture;
+                return withoutMarker;
+            }
+        });
+
+        await expect(
+            searchProvider.search({
+                schemaVersion: "oj.search-request/v1",
+                requestId: "missing-access-search",
+                platform: "leetcode",
+                query: "unknown",
+                limit: 10
+            })
+        ).rejects.toMatchObject({ code: "upstream.schema_changed" });
+        await fetchProvider
+            .fetchProblem(problemRef("premium-secret"))
+            .then(() => {
+                throw new Error(
+                    "Missing Premium marker unexpectedly succeeded."
+                );
+            })
+            .catch((error) => {
+                expect(error).toMatchObject({
+                    code: "upstream.schema_changed"
+                });
+                expect(JSON.stringify(error)).not.toContain(
                     "SECRET_PREMIUM_STATEMENT"
                 );
             });

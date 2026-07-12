@@ -74,7 +74,7 @@ export function createFakeService(
                     difficulty: "Easy",
                     acRate: 55.25,
                     topicTags: ["array", "hash-table"],
-                    paidOnly: false,
+                    isPaidOnly: false,
                     hints: ["SECRET_HINT"],
                     solution: "SECRET_SOLUTION"
                 },
@@ -84,7 +84,7 @@ export function createFakeService(
                     difficulty: "Hard",
                     acRate: 10,
                     topicTags: ["dynamic-programming"],
-                    paidOnly: true,
+                    isPaidOnly: true,
                     editorial: "SECRET_EDITORIAL"
                 }
             ]

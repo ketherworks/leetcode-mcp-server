@@ -249,9 +249,13 @@ export class LeetCodeOjProvider {
                 );
             }
             const fetchedAt = this.nowIso();
-            const items = parsed.data.questions
-                .filter((problem) => !problem.paidOnly && !problem.isPaidOnly)
-                .map((problem) => {
+            const auditedQuestions = parsed.data.questions.map((problem) => ({
+                problem,
+                paidOnly: requirePaidMarker(problem, this.site)
+            }));
+            const items = auditedQuestions
+                .filter(({ paidOnly }) => !paidOnly)
+                .map(({ problem }) => {
                     const source = this.source(fetchedAt, problem.titleSlug);
                     return {
                         schemaVersion: "oj.problem-summary/v1" as const,
@@ -328,7 +332,7 @@ export class LeetCodeOjProvider {
                 );
             }
             const problem = parsed.data;
-            if (problem.isPaidOnly || problem.paidOnly) {
+            if (requirePaidMarker(problem, this.site)) {
                 throw new LeetCodeAdapterError(
                     "policy.blocked",
                     "Premium LeetCode problem content is excluded by adapter policy."
@@ -534,6 +538,20 @@ function parseCursor(cursor: string | undefined): number {
 function normalizeAcceptance(value: number): number {
     const ratio = value > 1 ? value / 100 : value;
     return Math.max(0, Math.min(1, ratio));
+}
+
+function requirePaidMarker(
+    value: { isPaidOnly?: boolean; paidOnly?: boolean },
+    site: LeetCodeSite
+): boolean {
+    const marker = site === "cn" ? value.paidOnly : value.isPaidOnly;
+    if (typeof marker !== "boolean") {
+        throw new LeetCodeAdapterError(
+            "upstream.schema_changed",
+            "LeetCode response omitted the audited Premium access marker."
+        );
+    }
+    return marker;
 }
 
 function normalizeTags(
