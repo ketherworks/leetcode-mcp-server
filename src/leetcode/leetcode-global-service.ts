@@ -260,6 +260,7 @@ export class LeetCodeGlobalService implements LeetCodeBaseService {
                 title: question.title,
                 titleSlug: question.titleSlug,
                 difficulty: question.difficulty,
+                isPaidOnly: question.isPaidOnly,
                 acRate: question.acRate,
                 topicTags: question.topicTags.map((tag: any) => tag.slug)
             }))

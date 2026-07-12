@@ -1,0 +1,22 @@
+THIRD-PARTY NOTICES
+
+jinzcdev/leetcode-mcp-server
+Copyright (c) 2025 jinzc
+License: MIT
+Source: https://github.com/jinzcdev/leetcode-mcp-server
+Baseline: v1.3.0 / caca0cb38a95dc2c5a8e411196f95c0a01f1f82c
+The complete license text is retained in LICENSE.
+
+leetcode-query
+Copyright (c) JacobLinCool and contributors
+License: MIT
+Source: https://github.com/JacobLinCool/LeetCode-Query
+
+Model Context Protocol TypeScript SDK
+Copyright Anthropic, PBC
+License: MIT
+Source: https://github.com/modelcontextprotocol/typescript-sdk
+
+zod and zod-to-json-schema
+Licenses: MIT and ISC, respectively
+Sources: https://github.com/colinhacks/zod and https://github.com/StefanTerdell/zod-to-json-schema

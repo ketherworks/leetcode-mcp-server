@@ -25,6 +25,7 @@ query (
         questions: data {
             acRate
             difficulty
+            isPaidOnly
             title
             titleSlug
             topicTags {

@@ -286,6 +286,7 @@ export class LeetCodeCNService implements LeetCodeBaseService {
                 titleCn: q.titleCn,
                 titleSlug: q.titleSlug,
                 difficulty: q.difficulty,
+                paidOnly: q.paidOnly,
                 acRate: q.acRate,
                 topicTags: q.topicTags.map((tag: any) => tag.slug)
             }))

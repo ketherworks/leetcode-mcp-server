@@ -28,6 +28,7 @@ query problemsetQuestionList(
             titleCn
             titleSlug
             difficulty
+            paidOnly
             acRate
             topicTags {
                 slug

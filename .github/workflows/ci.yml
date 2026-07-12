@@ -2,9 +2,12 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "codex/**"]
   pull_request:
     branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
   build-and-test:
@@ -13,10 +16,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Use Node.js 20
+      - name: Use Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22.23.1
           cache: "npm"
 
       - name: Install dependencies
@@ -27,3 +30,9 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Verify private package contents
+        run: npm pack --dry-run --json
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
