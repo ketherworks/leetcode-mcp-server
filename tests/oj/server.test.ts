@@ -133,6 +133,98 @@ describe("private LeetCode MCP server", () => {
         );
         await close();
     });
+
+    test("handles capabilities, health, unknown tools, and unexpected internal failures safely", async () => {
+        const { client, close } = await connect();
+
+        const caps = await client.callTool({
+            name: "oj_capabilities",
+            arguments: {}
+        });
+        expect(caps.isError).not.toBe(true);
+        expect(caps.structuredContent).toMatchObject({
+            schemaVersion: "oj.capabilities/v1",
+            platform: "leetcode"
+        });
+
+        const badHealthArgs = await client.callTool({
+            name: "oj_health",
+            arguments: { extra: true }
+        });
+        expect(badHealthArgs).toMatchObject({
+            isError: true,
+            structuredContent: {
+                schemaVersion: "oj.error/v1",
+                code: "request.invalid"
+            }
+        });
+
+        const unknownTool = await client.callTool({
+            name: "submit_solution",
+            arguments: {}
+        });
+        expect(unknownTool).toMatchObject({
+            isError: true,
+            structuredContent: {
+                schemaVersion: "oj.error/v1",
+                code: "request.invalid",
+                layer: "broker"
+            }
+        });
+        await close();
+
+        const crashingServer = createLeetCodeMcpServer({
+            provider: {
+                getCapabilities: async () => {
+                    throw new Error("SECRET_INTERNAL_CRASH");
+                },
+                getHealth: async () => {
+                    throw new Error("SECRET_INTERNAL_CRASH");
+                },
+                search: async () => {
+                    throw new Error("SECRET_INTERNAL_CRASH");
+                },
+                fetchProblem: async () => {
+                    throw new Error("SECRET_INTERNAL_CRASH");
+                }
+            }
+        });
+        const crashClient = new Client({
+            name: "crash-test-client",
+            version: "0.1.0"
+        });
+        const [ct, st] = InMemoryTransport.createLinkedPair();
+        await crashingServer.connect(st);
+        await crashClient.connect(ct);
+
+        const internalResult = await crashClient.callTool({
+            name: "oj_search_problems",
+            arguments: {
+                schemaVersion: "oj.search-request/v1",
+                requestId: "req-crash-1",
+                platform: "leetcode",
+                query: "two sum",
+                limit: 5
+            }
+        });
+        expect(internalResult).toMatchObject({
+            isError: true,
+            structuredContent: {
+                schemaVersion: "oj.error/v1",
+                code: "internal",
+                layer: "broker",
+                retryPolicy: "never",
+                userAction: "open_logs",
+                requestId: "req-crash-1"
+            }
+        });
+        expect(JSON.stringify(internalResult)).not.toContain(
+            "SECRET_INTERNAL_CRASH"
+        );
+
+        await crashClient.close();
+        await crashingServer.close();
+    });
 });
 
 async function connect(provider = createProvider()) {

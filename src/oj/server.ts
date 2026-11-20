@@ -16,7 +16,8 @@ import {
     ojProviderHealthSchema,
     ojSearchResultSchema
 } from "./contracts.js";
-import { LeetCodeAdapterError, LeetCodeOjProvider } from "./provider.js";
+import { LeetCodeAdapterError, PROVIDER_VERSION, toOjError } from "./errors.js";
+import { LeetCodeOjReadProvider } from "./provider.js";
 
 export const LEETCODE_MCP_TOOL_NAMES = [
     "oj_capabilities",
@@ -44,10 +45,10 @@ type RegisterCallToolHandler = (
 ) => void;
 
 export function createLeetCodeMcpServer(options: {
-    provider: LeetCodeOjProvider;
+    provider: LeetCodeOjReadProvider;
 }): Server {
     const server = new Server(
-        { name: "leetcode-mcp-private", version: "0.1.0" },
+        { name: "leetcode-mcp-private", version: PROVIDER_VERSION },
         { capabilities: { tools: { listChanged: false } } }
     );
 
@@ -78,7 +79,7 @@ export function createLeetCodeMcpServer(options: {
                 );
             default:
                 return toToolError(
-                    ojError(
+                    toOjError(
                         "request.invalid",
                         "Unknown tool. This adapter exposes exactly four anonymous read tools."
                     )
@@ -161,7 +162,7 @@ async function callSafely<T>(
     const parsed = schema.safeParse(input);
     if (!parsed.success) {
         return toToolError(
-            ojError(
+            toOjError(
                 "request.invalid",
                 "Tool input did not match its strict bounded schema.",
                 requestIdFrom(input)
@@ -177,55 +178,15 @@ async function callSafely<T>(
 
 function mapError(error: unknown, requestId?: string): CallToolResult {
     if (error instanceof LeetCodeAdapterError) {
-        return toToolError(ojError(error.code, error.message, requestId));
+        return toToolError(toOjError(error.code, error.message, requestId));
     }
-    return toToolError({
-        schemaVersion: "oj.error/v1",
-        code: "internal",
-        layer: "broker",
-        message:
+    return toToolError(
+        toOjError(
+            "internal",
             "The private LeetCode adapter failed without exposing internal data.",
-        retryPolicy: "never",
-        userAction: "open_logs",
-        platform: "leetcode",
-        providerId: "leetcode-query-anonymous-adapter",
-        requestId
-    });
-}
-
-function ojError(
-    code: LeetCodeAdapterError["code"] | "internal",
-    message: string,
-    requestId?: string
-): OjError {
-    const retryable =
-        code === "network.timeout" ||
-        code === "rate_limited" ||
-        code === "upstream.unavailable";
-    return ojErrorSchema.parse({
-        schemaVersion: "oj.error/v1",
-        code,
-        layer:
-            code === "request.invalid"
-                ? "broker"
-                : code === "policy.blocked"
-                  ? "policy"
-                  : code === "network.timeout"
-                    ? "transport"
-                    : code === "internal"
-                      ? "broker"
-                      : "upstream",
-        message,
-        retryPolicy: retryable ? "safe_read" : "never",
-        userAction: retryable
-            ? "retry"
-            : code === "upstream.schema_changed" || code === "internal"
-              ? "open_logs"
-              : "none",
-        platform: "leetcode",
-        providerId: "leetcode-query-anonymous-adapter",
-        requestId
-    });
+            requestId
+        )
+    );
 }
 
 function toToolResult(result: object): CallToolResult {

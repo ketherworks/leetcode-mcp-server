@@ -323,6 +323,10 @@ export const ojErrorSchema = z
     .strict();
 
 export type OjCapabilityName = (typeof ojCapabilityNames)[number];
+export type OjSourceRef = z.infer<typeof ojSourceRefSchema>;
+export type OjProblemRef = z.infer<typeof ojProblemRefSchema>;
+export type OjProblemSummary = z.infer<typeof ojProblemSummarySchema>;
+export type OjTextBlock = z.infer<typeof ojTextBlockSchema>;
 export type OjCapabilities = z.infer<typeof ojCapabilitiesSchema>;
 export type OjProviderHealth = z.infer<typeof ojProviderHealthSchema>;
 export type OjSearchInput = z.input<typeof leetCodeSearchInputSchema>;
