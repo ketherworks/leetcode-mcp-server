@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { CliUsageError, parseCliOptions } from "../../src/cli.js";
+import { cliHelp, CliUsageError, parseCliOptions } from "../../src/cli.js";
 
 describe("private CLI boundary", () => {
     test.each([
@@ -45,4 +45,26 @@ describe("private CLI boundary", () => {
             expect(secret === "" || !message.includes(secret)).toBe(true);
         }
     );
+
+    test("supports --help and rejects duplicate --site or inline --session= values safely", () => {
+        expect(parseCliOptions(["--help"], {})).toEqual({
+            site: "global",
+            help: true
+        });
+        expect(cliHelp()).toContain("leetcode-mcp-private");
+
+        expect(() =>
+            parseCliOptions(["--site", "global", "--site=cn"], {})
+        ).toThrow(CliUsageError);
+
+        const inlineSecret = "INLINE_SECRET_COOKIE_VALUE";
+        let message = "";
+        try {
+            parseCliOptions([`--session=${inlineSecret}`], {});
+        } catch (error) {
+            message = (error as Error).message;
+        }
+        expect(message).toContain("Session credentials are forbidden");
+        expect(message).not.toContain(inlineSecret);
+    });
 });

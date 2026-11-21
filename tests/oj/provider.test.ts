@@ -3,6 +3,7 @@ import {
     LeetCodeAdapterError,
     LeetCodeOjProvider
 } from "../../src/oj/provider.js";
+import { createGraphqlQueryTransport } from "../../src/oj/transport.js";
 import {
     FIXED_NOW,
     createFakeService,
@@ -296,6 +297,175 @@ describe("LeetCode OJ provider", () => {
         );
         await expect(drifted.fetchProblem(problemRef())).rejects.toMatchObject({
             code: "upstream.schema_changed"
+        });
+    });
+
+    test("supports direct GraphQL transport injection for CN and rejects site mismatch", async () => {
+        const cnTransport = createGraphqlQueryTransport({
+            site: "cn",
+            client: {
+                graphql: async () => ({
+                    data: {
+                        problemsetQuestionList: {
+                            hasMore: true,
+                            total: 3,
+                            questions: [
+                                {
+                                    title: "Two Sum",
+                                    titleCn: "两数之和",
+                                    titleSlug: "two-sum",
+                                    difficulty: "Easy",
+                                    paidOnly: false,
+                                    acRate: 0.5525,
+                                    topicTags: [{ slug: "array" }]
+                                },
+                                {
+                                    title: "Locked CN",
+                                    titleCn: "会员专享",
+                                    titleSlug: "locked-cn",
+                                    difficulty: "Hard",
+                                    paidOnly: true,
+                                    acRate: 0.21,
+                                    topicTags: [{ slug: "dp" }]
+                                }
+                            ]
+                        }
+                    }
+                }),
+                problem: async () => publicProblemFixture
+            }
+        });
+
+        expect(
+            () =>
+                new LeetCodeOjProvider({
+                    transport: cnTransport,
+                    site: "global",
+                    nowIso: () => FIXED_NOW
+                })
+        ).toThrow("Configured LeetCode site does not match transport site.");
+
+        const provider = new LeetCodeOjProvider({
+            transport: cnTransport,
+            nowIso: () => FIXED_NOW
+        });
+
+        const searchResult = await provider.search({
+            schemaVersion: "oj.search-request/v1",
+            requestId: "cn-graphql-1",
+            platform: "leetcode",
+            query: "两数",
+            locale: "zh-CN",
+            limit: 2
+        });
+        expect(searchResult.items).toHaveLength(1);
+        expect(searchResult.items[0]).toMatchObject({
+            title: "两数之和",
+            ref: {
+                site: "cn",
+                canonicalId: "leetcode:cn:two-sum",
+                url: "https://leetcode.cn/problems/two-sum/"
+            }
+        });
+        expect(searchResult.nextCursor).toBe("v1:2");
+
+        const doc = await provider.fetchProblem(problemRef("two-sum", "cn"));
+        expect(doc).toMatchObject({
+            title: "两数之和",
+            locale: "zh-CN",
+            content: {
+                statement: {
+                    text: publicProblemFixture.translatedContent,
+                    locale: "zh-CN"
+                }
+            }
+        });
+    });
+
+    test("tracks health observations across upstream outcomes without poisoning health on caller input errors", async () => {
+        let mode: "ok" | "timeout" | "down" = "ok";
+        const provider = createProvider({
+            searchProblems: async () => {
+                if (mode === "timeout") {
+                    throw new Error("ETIMEDOUT while reading upstream");
+                }
+                if (mode === "down") {
+                    throw new Error("502 Bad Gateway SECRET_UPSTREAM_TRACE");
+                }
+                return {
+                    total: 1,
+                    questions: [
+                        {
+                            title: "Two Sum",
+                            titleSlug: "two-sum",
+                            topicTags: ["array"],
+                            isPaidOnly: false
+                        }
+                    ]
+                };
+            }
+        });
+
+        await expect(provider.getHealth()).resolves.toMatchObject({
+            overall: "degraded",
+            layers: { schema: "unknown", upstream: "pass" }
+        });
+
+        await provider.search({
+            schemaVersion: "oj.search-request/v1",
+            requestId: "health-1",
+            platform: "leetcode",
+            query: "two",
+            limit: 5
+        });
+        await expect(provider.getHealth()).resolves.toMatchObject({
+            overall: "healthy",
+            layers: { schema: "pass", upstream: "pass" }
+        });
+
+        // Caller validation error must not degrade upstream observation
+        await expect(
+            provider.search({
+                schemaVersion: "oj.search-request/v1",
+                requestId: "bad-cursor",
+                platform: "leetcode",
+                query: "two",
+                cursor: "v1:99999",
+                limit: 5
+            })
+        ).rejects.toMatchObject({ code: "request.invalid" });
+        await expect(provider.getHealth()).resolves.toMatchObject({
+            overall: "healthy"
+        });
+
+        mode = "timeout";
+        await expect(
+            provider.search({
+                schemaVersion: "oj.search-request/v1",
+                requestId: "health-timeout",
+                platform: "leetcode",
+                query: "two",
+                limit: 5
+            })
+        ).rejects.toMatchObject({ code: "network.timeout" });
+        await expect(provider.getHealth()).resolves.toMatchObject({
+            overall: "degraded",
+            layers: { upstream: "timeout" }
+        });
+
+        mode = "down";
+        await expect(
+            provider.search({
+                schemaVersion: "oj.search-request/v1",
+                requestId: "health-down",
+                platform: "leetcode",
+                query: "two",
+                limit: 5
+            })
+        ).rejects.toMatchObject({ code: "upstream.unavailable" });
+        await expect(provider.getHealth()).resolves.toMatchObject({
+            overall: "unavailable",
+            layers: { upstream: "fail" }
         });
     });
 });
